@@ -6,13 +6,16 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -21,11 +24,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # Chạy test + sinh báo cáo + kiểm tra ngưỡng coverage 80%
       - name: Build and verify with Maven
         run: mvn -B clean verify
 
-      # always(): upload báo cáo kể cả khi build fail vì coverage thấp
       - name: Upload JaCoCo report
         if: always()
         uses: actions/upload-artifact@v4
@@ -34,3 +35,19 @@ jobs:
           path: target/site/jacoco/
           if-no-files-found: warn
           retention-days: 14
+
+  checkstyle:
+    name: Checkstyle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkstyle (comment on PR lines)
+        uses: dbelyaev/action-checkstyle@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review
+          checkstyle_config: config/checkstyle.xml
+          level: warning
+          filter_mode: added
+          fail_level: any
